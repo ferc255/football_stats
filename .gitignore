@@ -1,0 +1,6 @@
+.eggs
+foostats.egg-info
+foostats/tests/__pycache__/
+.pytest_cache
+.tox
+venv
