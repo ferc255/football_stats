@@ -6,9 +6,6 @@ from apiclient.discovery import build
 from httplib2 import Http
 from oauth2client import file, client, tools
 import json
-import urllib
-from googleapiclient.errors import HttpError
-
 
 # Setup the Sheets API
 SCOPES = 'https://www.googleapis.com/auth/spreadsheets'
@@ -60,42 +57,21 @@ body4 = body4# % ((355237090,) * 2)
 body4 = json.loads(body4)
 
 
-def with_async_state(function):
-    def wrapper(*args, **kwargs):
-        while True:
-            try:
-                return function(*args, **kwargs)
-            except HttpError as e:
-                assert e.resp.status == 429
 
-    return wrapper
-                    
 
-@with_async_state
-def callme():
-    value_input_option = "RAW"
-    result = service.spreadsheets().values().update(
-        spreadsheetId=SPREADSHEET_ID, range=RANGE_NAME,
-        valueInputOption=value_input_option, body=body).execute()
-    print(result)
-
-    
-HttpError
-for i in range(1000):
-    print(i)
-    callme(4, 5)
-
-'''
 request = service.spreadsheets().batchUpdate(
     spreadsheetId=SPREADSHEET_ID,
     body=body4).execute()
 print(request)
+
+
 '''
-
-
-#print('{0} cells updated.'.format(result.get('updatedCells')));
-#print(result)
-
+value_input_option = "RAW"
+result = service.spreadsheets().values().update(
+    spreadsheetId=SPREADSHEET_ID, range=RANGE_NAME,
+    valueInputOption=value_input_option, body=body).execute()
+print('{0} cells updated.'.format(result.get('updatedCells')));
+'''
 
 #print(values)
 '''

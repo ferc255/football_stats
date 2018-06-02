@@ -1,0 +1,60 @@
+{
+  "requests": [
+    {
+      "addChart": {
+        "chart": {
+            "position": {
+            "overlayPosition": {
+              "anchorCell": {
+                "sheetId": 944303669,
+                "rowIndex": 0,
+                "columnIndex": 0
+              },
+              "offsetXPixels": 0,
+              "offsetYPixels": 0,
+                "widthPixels": 1000,
+                "heightPixels": 600
+            }
+          },
+          "spec": {
+            "title": "Model Q1 Total Sales",
+            "basicChart": {
+                "chartType": "LINE",
+              "legendPosition": "RIGHT_LEGEND",
+                
+              "domains": [{"domain":{
+                "sourceRange": {
+                  "sources": [
+                    {
+                      "sheetId": 355237090,
+                      "startRowIndex": 0,
+                      "endRowIndex": 100,
+                      "startColumnIndex": 0,
+                      "endColumnIndex": 1
+                    }
+                  ]
+                }}
+              }],
+              "series": [{"series":{
+                "sourceRange": {
+                  "sources": [
+                    {
+                      "sheetId": 355237090,
+                      "startRowIndex": 0,
+                      "endRowIndex": 100,
+                      "startColumnIndex": 1,
+                      "endColumnIndex": 2
+                    }
+                  ]
+                }}
+              }]
+            }
+          }
+          
+        }
+      }
+    }
+  ]
+}
+
+
