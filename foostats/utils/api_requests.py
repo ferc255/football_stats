@@ -11,7 +11,7 @@ from oauth2client import (
     tools as oauth_tools,
 )
 
-from foostats.settings import CREDENTIALS_FOLDER
+from foostats.settings import CREDENTIALS_DIR
 
 
 def get_api_service():
@@ -20,12 +20,12 @@ def get_api_service():
     which is used for sending requests.
     """
     scopes = 'https://www.googleapis.com/auth/spreadsheets'
-    credentials_file = os.path.join(CREDENTIALS_FOLDER, 'credentials.json')
+    credentials_file = os.path.join(CREDENTIALS_DIR, 'credentials.json')
     store = oauth_file.Storage(credentials_file)
     creds = store.get()
 
     if not creds or creds.invalid:
-        client_file = os.path.join(CREDENTIALS_FOLDER, 'client_secret.json')
+        client_file = os.path.join(CREDENTIALS_DIR, 'client_secret.json')
         flow = oauth_client.flow_from_clientsecrets(
             client_file, scopes)
         creds = oauth_tools.run_flow(flow, store)

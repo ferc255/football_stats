@@ -1,7 +1,7 @@
 """
 The module fetches updates from the source file and recreates database.
 """
-from foostats.tools.api_requests import get_api_service
+from foostats.utils.api_requests import get_api_service
 
 
 def main():
