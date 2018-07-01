@@ -2,9 +2,11 @@
 The tools that allow to communicate with google sheets through API.
 """
 import os
+import logging
 import httplib2
 
 from googleapiclient.discovery import build as build_service
+from googleapiclient.errors import HttpError
 from oauth2client import (
     client as oauth_client,
     file as oauth_file,
@@ -12,6 +14,9 @@ from oauth2client import (
 )
 
 from foostats.settings import CREDENTIALS_DIR
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def get_api_service():
@@ -33,3 +38,18 @@ def get_api_service():
     service = build_service(
         'sheets', 'v4', http=creds.authorize(httplib2.Http()))
     return service
+
+
+def with_async_state(function):
+    """ Restart function if it crashed """
+    def wrapper(*args, **kwargs):
+        """ Wrapper for decorator """
+        while True:
+            try:
+                return function(*args, **kwargs)
+            except HttpError as exc:
+                assert exc.resp.status == 429
+            except httplib2.ServerNotFoundError:
+                LOGGER.error('Internal Google error. Reconnecting...')
+
+    return wrapper

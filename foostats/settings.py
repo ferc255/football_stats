@@ -9,3 +9,5 @@ CREDENTIALS_DIR = os.path.join(
     os.path.expanduser('~'),
     'app_credentials/google_api/'
 )
+
+SPREADSHEET_ID = '1DB814bM2tHdwsCDdaQK05ER8GPkpzaUc8xhfO9aAGIE'
