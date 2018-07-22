@@ -42,10 +42,13 @@ def get_total_points(matches):
             for player in match[color]:
                 total_points[player] += points_to_add[color]
 
-    result = []
+    result = {
+        'columns': 2,
+        'data': []
+    }
     for player, score in sorted(total_points.items(),
                                 key=lambda x: (-x[1], x[0])):
-        result.append([player, score])
+        result['data'].append([player, score])
     return result
 
 
@@ -53,8 +56,11 @@ def get_points_history(matches, player_name):
     """
     Calculates history of points for certain player
     """
+    result = {
+        'columns': 3,
+        'data': [],
+    }
     total_points = collections.defaultdict(int)
-    result = []
     for date, match in sorted(matches.items(), key=lambda x: x[0]):
         if match['score'][0] == match['score'][1]:
             points_to_add = {
@@ -76,7 +82,7 @@ def get_points_history(matches, player_name):
         table = sorted(total_points.items(), key=lambda x: (-x[1], x[0]))
         position = table.index((player_name, total_points[player_name])) + 1
 
-        result.append([date, total_points[player_name], position])
+        result['data'].append([date, total_points[player_name], position])
 
     return result
 

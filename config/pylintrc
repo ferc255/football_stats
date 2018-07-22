@@ -1,4 +1,5 @@
 [myconfig]
-# disable=trailing-whitespace,missing-docstring
+# disable=trailing-whitespace,
 # disable=W0511
-ignored-modules=googleapiclient.discovery
+ignored-modules=googleapiclient.discovery,
+disable=missing-docstring,
