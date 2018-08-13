@@ -46,7 +46,8 @@ class ProcessMatchesTest(unittest.TestCase):
                           ['Дима', 4],
                           ['Виталий', 2],
                           ['Саша', 1]],
-                         response)
+                         response['data'])
+        self.assertEqual(2, response['columns'])
 
     def test_points_history(self):
         """
@@ -56,11 +57,13 @@ class ProcessMatchesTest(unittest.TestCase):
         self.assertEqual([["2018.06.01", 0, 5],
                           ["2018.06.02", 1, 5],
                           ["2018.06.03", 4, 4]],
-                         response['Дима']['points_history'])
+                         response['Дима']['points_history']['data'])
         self.assertEqual([["2018.06.01", 0, 4],
                           ["2018.06.02", 1, 4],
                           ["2018.06.03", 2, 5]],
-                         response['Виталий']['points_history'])
+                         response['Виталий']['points_history']['data'])
+
+        self.assertEqual(3, response['Саша']['points_history']['columns'])
 
 
 if __name__ == '__main__':

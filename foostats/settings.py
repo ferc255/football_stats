@@ -10,4 +10,6 @@ CREDENTIALS_DIR = os.path.join(
     'app_credentials/google_api/'
 )
 
+MAXIMUM_CELL_BRIGHTNESS = 0.4
+
 SPREADSHEET_ID = '1DB814bM2tHdwsCDdaQK05ER8GPkpzaUc8xhfO9aAGIE'
