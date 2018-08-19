@@ -5,6 +5,9 @@ should be displayed in Google Spreadsheets in the future.
 import json
 import sys
 import collections
+import functools
+
+from foostats.settings import MIN_MATCH_COUNT
 
 
 def get_players_set(matches):
@@ -19,28 +22,36 @@ def get_players_set(matches):
     return players_set
 
 
+def get_match_results(match):
+    points = collections.defaultdict(int)
+    if match['score'][0] == match['score'][1]:
+        points_to_add = {
+            'red': 1,
+            'green': 1,
+            'blue': 1,
+        }
+    else:
+        points_to_add = {
+            'red': 3,
+            'green': 1,
+            'blue': 0,
+        }
+
+    for color in ['red', 'green', 'blue']:
+        for player in match[color]:
+            points[player] += points_to_add[color]
+
+    return {'points': points}
+
+
 def get_total_points(matches):
     """
     Calculates everything so far
     """
     total_points = collections.defaultdict(int)
     for match in matches.values():
-        if match['score'][0] == match['score'][1]:
-            points_to_add = {
-                'red': 1,
-                'green': 1,
-                'blue': 1,
-            }
-        else:
-            points_to_add = {
-                'red': 3,
-                'green': 1,
-                'blue': 0,
-            }
-
-        for color in ['red', 'green', 'blue']:
-            for player in match[color]:
-                total_points[player] += points_to_add[color]
+        for player, score in get_match_results(match)['points'].items():
+            total_points[player] += score
 
     result = {
         'columns': 2,
@@ -52,39 +63,80 @@ def get_total_points(matches):
     return result
 
 
-def get_points_history(matches, player_name):
-    """
-    Calculates history of points for certain player
-    """
-    result = {
-        'columns': 3,
-        'data': [],
+def get_coef_history(matches, player_name, min_matches_count):
+    def comparator(first, second):
+        if (bool(first['match_count'] >= min_matches_count) !=
+                bool(second['match_count'] >= min_matches_count)):
+            return -1 if first['match_count'] >= min_matches_count else 1
+        if first['coef'] != second['coef']:
+            return second['coef'] - first['coef']
+        return -1 if first['name'] < second['name'] else 1
+
+    players_set = get_players_set(matches)
+    player_stats = {
+        player: {
+            'points': 0,
+            'matches': 0,
+        } for player in players_set
     }
-    total_points = collections.defaultdict(int)
+    delta_set = {'prev': {}}
+    result = []
     for date, match in sorted(matches.items(), key=lambda x: x[0]):
-        if match['score'][0] == match['score'][1]:
-            points_to_add = {
-                'red': 1,
-                'green': 1,
-                'blue': 1,
+        for player, score in get_match_results(match)['points'].items():
+            player_stats[player]['points'] += score
+            player_stats[player]['matches'] += 1
+
+        table = []
+        for player in players_set:
+            if player_stats[player]['matches']:
+                table.append({
+                    'name': player,
+                    'match_count': player_stats[player]['matches'],
+                    'coef': round(player_stats[player]['points'] * 100 /
+                                  (player_stats[player]['matches'] * 3), 1),
+                })
+
+        table = sorted(table, key=functools.cmp_to_key(comparator))
+
+        position = table.index({
+            'name': player_name,
+            'match_count': player_stats[player_name]['matches'],
+            'coef': round(player_stats[player_name]['points'] * 100 /
+                          (player_stats[player_name]['matches'] * 3), 1),
+        }) if player_stats[player_name]['matches'] else -1
+
+        if position != -1:
+            delta_set['cur'] = {
+                'below': ((players_set -
+                           {player for player in players_set
+                            if player_stats[player]['matches']})
+                          |
+                          set(player['name']
+                              for player in table[position + 1:])),
+                'above': set(player['name'] for player in table[:position]),
             }
+            if delta_set['prev']:
+                diff = {
+                    'below': (delta_set['prev']['above'] &
+                              delta_set['cur']['below']),
+                    'above': (delta_set['prev']['below'] &
+                              delta_set['cur']['above']),
+                }
+                result.append([date, position + 1, table[position]['coef'],
+                               ', '.join(sorted(diff['below'])),
+                               ', '.join(sorted(diff['above']))])
+            else:
+                result.append([date, position + 1, table[position]['coef'],
+                               '', ''])
+
+            delta_set['prev'] = delta_set['cur']
         else:
-            points_to_add = {
-                'red': 3,
-                'green': 1,
-                'blue': 0,
-            }
+            result.append([date, len(players_set), '-', '', ''])
 
-        for color in ['red', 'green', 'blue']:
-            for player in match[color]:
-                total_points[player] += points_to_add[color]
+    result = [[i + 1] + elem for i, elem in enumerate(reversed(result))]
 
-        table = sorted(total_points.items(), key=lambda x: (-x[1], x[0]))
-        position = table.index((player_name, total_points[player_name])) + 1
-
-        result['data'].append([date, total_points[player_name], position])
-
-    return result
+    return {'columns': 6,
+            'data': result}
 
 
 def calculate(matches):
@@ -97,9 +149,10 @@ def calculate(matches):
     }
 
     response['MAIN']['total_points'] = get_total_points(matches)
+
     for player in players_set:
-        response[player]['points_history'] = (
-            get_points_history(matches, player))
+        response[player]['coef_history'] = (
+            get_coef_history(matches, player, MIN_MATCH_COUNT))
 
     return response
 
@@ -119,7 +172,7 @@ def parse_args():
         ),
         open(sys.argv[2], 'w'),
         indent=2,
-        ensure_ascii=False
+        ensure_ascii=False,
     )
 
 
