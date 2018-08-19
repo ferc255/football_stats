@@ -12,8 +12,8 @@ def batch_update(service, body):
     """
     Service function which does batchUpdate
     """
-    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID,
-                                       body=body).execute()
+    return service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID,
+                                              body=body).execute()
 
 
 def update_sheet_widths(service, sheet_id, widths):
@@ -39,46 +39,50 @@ def update_sheet_widths(service, sheet_id, widths):
     batch_update(service, {'requests': body})
 
 
-def clear_sheet(service, sheet_id):
-    sheet_range = {
-        'sheetId': sheet_id,
-        'startRowIndex': 0,
-        'endRowIndex': 1000,
-        'startColumnIndex': 0,
-        'endColumnIndex': 30
-    }
-    body = {
-        'requests': [
-            {
-                'repeatCell': {
-                    'range': sheet_range,
-                    'fields': '*',
+def clear_sheet(sheet_id):
+    return [
+        {
+            'repeatCell': {
+                'range': {
+                    'sheetId': sheet_id,
                 },
+                'fields': '*',
             },
-            {
-                'unmergeCells': {
-                    'range': sheet_range,
-                },
+        },
+        {
+            'unmergeCells': {
+                'range': {
+                    'sheetId': sheet_id,
+                }
             },
-        ]
-    }
-
-    batch_update(service, body)
+        },
+    ]
 
 
 @with_async_state
-def get_main_id(service):
-    """
-    Get sheetId of the MAIN page
-    """
-    response = service.spreadsheets().get(
-        spreadsheetId=SPREADSHEET_ID).execute()
+def get_all_sheets(service):
+    return service.spreadsheets().get(
+        spreadsheetId=SPREADSHEET_ID).execute()['sheets']
 
-    for sheet in response['sheets']:
+
+def init(service):
+    sheets = get_all_sheets(service)
+
+    body = []
+    for sheet in sheets:
         if sheet['properties']['title'] == 'MAIN':
-            return sheet['properties']['sheetId']
+            main_id = sheet['properties']['sheetId']
+            body.extend(clear_sheet(main_id))
+        else:
+            body.append({
+                'deleteSheet': {
+                    'sheetId': sheet['properties']['sheetId'],
+                }
+            })
 
-    return None
+    batch_update(service, {'requests': body})
+
+    return main_id
 
 
 def gen_color():
@@ -94,8 +98,7 @@ class Table:
     description_font_size = 10
     colnames_font_size = 12
     data_font_size = 12
-    name_align = 'LEFT'
-    values_align = 'CENTER'
+    data_alignment = 'CENTER'
 
     def __init__(self, header, data, columns, color):
         self.title = header['title']
@@ -104,6 +107,16 @@ class Table:
         self.data = data
         self.columns = columns
         self.color = color
+
+    @classmethod
+    def build_table(cls, table_name, header, data, alignment):
+        result = cls(
+            header,
+            data=data[table_name]['data'],
+            columns=data[table_name]['columns'],
+            color=gen_color())
+        result.data_alignment = alignment
+        return result
 
     @staticmethod
     def merge_cells(sheet_id, start_row, start_column,
@@ -137,6 +150,7 @@ class Table:
                     'bold': bold,
                 },
                 'horizontalAlignment': alignment,
+                'verticalAlignment': 'MIDDLE',
                 'wrapStrategy': 'WRAP',
             },
         }
@@ -255,7 +269,7 @@ class Table:
                     'column_index': column_index,
                 },
                 {
-                    'alignment': ['LEFT', 'CENTER'],
+                    'alignment': self.data_alignment,
                     'font_size': self.data_font_size,
                     'bold': False,
                 },
@@ -281,30 +295,86 @@ class Table:
         batch_update(service, {'requests': requests})
 
 
+def create_sheets(service, stats):
+    result = {'MAIN': init(service)}
+    body = []
+    for player in sorted(stats):
+        if player != 'MAIN':
+            body = {
+                'requests': {
+                    'addSheet': {
+                        'properties': {
+                            'title': player,
+                            'gridProperties': {
+                                'columnCount': 6,  # Attention!!!
+                            }
+                        }
+                    }
+                }
+            }
+            # We must do every creation as a separate batch_update
+            # because we want to get all the sheets in an alphabetical order.
+            result[player] = (
+                batch_update(service, body)
+                ['replies'][0]['addSheet']['properties']['sheetId']
+            )
+
+    return result
+
+
 def main():
+    """
+    Valid request:
+        python3 components/ui.py database/processed.json
+    """
     stats = json.load(open(sys.argv[1]))
 
     service = get_api_service()
+    sheet_id = create_sheets(service, stats)
 
-    main_id = get_main_id(service)
+    total_points = Table.build_table(
+        'total_points',
+        {
+            'title': 'Всего очков',
+            'description': ('Большой и длинный дескрипшн дабы '
+                            'проверить что все у нас хорошо '
+                            'и что у нас работает перенос по '
+                            'словам.'),
+            'colnames': ['Игрок', 'Очков'],
+        },
+        stats['MAIN'],
+        ['LEFT', 'CENTER']
+    )
+    total_points.draw(service, sheet_id['MAIN'], 'A3')
 
-    clear_sheet(service, main_id)
+    player_tables = {}
+    for player in stats:
+        if player != 'MAIN':
+            player_tables[player] = {
+                'coef_history': Table.build_table(
+                    'coef_history',
+                    {
+                        'title': 'История коэффициента очков',
+                        'description': (
+                            'Большой и длинный дескрипшн дабы '
+                            'проверить что все у нас хорошо '
+                            'и что у нас работает перенос по '
+                            'словам.'),
+                        'colnames': ['N', 'Дата', 'Место в рейтинге',
+                                     'Процент очков',
+                                     'Кого обогнал в рейтинге',
+                                     'Кому уступил в рейтинге'],
+                    },
+                    stats[player],
+                    ['CENTER'] * 6
+                )
+            }
 
-    first_table_header = {
-        'title': 'Всего очков',
-        'description': ('Большой и длинный дескрипшн дабы '
-                        'проверить что все у нас хорошо '
-                        'и что у нас работает перенос по '
-                        'словам.'),
-        'colnames': ['Игрок', 'Очков'],
-    }
-    first_table = Table(first_table_header,
-                        data=stats['MAIN']['total_points']['data'],
-                        columns=stats['MAIN']['total_points']['columns'],
-                        color=gen_color())
-    first_table.draw(service, main_id, 'A3')
+    for player in player_tables:
+        player_tables[player]['coef_history'].draw(
+            service, sheet_id[player], 'A3')
 
-    update_sheet_widths(service, main_id, [200] * 2)
+    update_sheet_widths(service, sheet_id['MAIN'], [200] * 2)
 
 
 if __name__ == '__main__':
