@@ -1,10 +1,12 @@
-import sys
-import json
 import random
 
 from foostats.utils.api_requests import get_api_service
 from foostats.utils.api_requests import with_async_state
 from foostats.settings import SPREADSHEET_ID, MAXIMUM_CELL_BRIGHTNESS
+from foostats.utils.helpers import get_logger
+
+
+LOGGER = get_logger(__name__)
 
 
 @with_async_state
@@ -312,6 +314,8 @@ def create_sheets(service, stats):
                     }
                 }
             }
+
+            LOGGER.info('Creating empty sheet for %s', player)
             # We must do every creation as a separate batch_update
             # because we want to get all the sheets in an alphabetical order.
             result[player] = (
@@ -322,16 +326,20 @@ def create_sheets(service, stats):
     return result
 
 
-def main():
+def draw(stats):
     """
     Valid request:
         python3 components/ui.py database/processed.json
     """
-    stats = json.load(open(sys.argv[1]))
+    LOGGER.info('Drawing the results')
 
+    LOGGER.info('Getting api service')
     service = get_api_service()
+
+    LOGGER.info('Creating sheets for each player')
     sheet_id = create_sheets(service, stats)
 
+    LOGGER.info('Filling the MAIN sheet')
     total_points = Table.build_table(
         'total_points',
         {
@@ -371,11 +379,9 @@ def main():
             }
 
     for player in player_tables:
+        LOGGER.info('Filling statistics for %s', player)
         player_tables[player]['coef_history'].draw(
             service, sheet_id[player], 'A3')
 
+    LOGGER.info('Successfully drawn all the stats!')
     update_sheet_widths(service, sheet_id['MAIN'], [200] * 2)
-
-
-if __name__ == '__main__':
-    main()

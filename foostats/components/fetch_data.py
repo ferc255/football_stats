@@ -2,11 +2,14 @@
 The module fetches updates from the source file and recreates database.
 """
 import re
-import sys
-import json
+
+from foostats.utils.helpers import get_logger
 from foostats.utils.api_requests import get_api_service
 from foostats.settings import SOURCE_SPREADSHEET_ID
 from foostats.utils.api_requests import with_async_state
+
+
+LOGGER = get_logger(__name__)
 
 
 def parse_score(score):
@@ -26,7 +29,7 @@ def reverse_date(date):
 def fetch(month):
     matches = {}
     for i, date in enumerate(month[0]['values']):
-        if not i or not date.get('formattedValue'):
+        if not i or not month[1]['values'][i].get('formattedValue'):
             continue
 
         match = {
@@ -80,20 +83,22 @@ def get_year_stats(service):
     return result
 
 
-def main():
+def fetch_data():
     """
     The main function of the utility.
     """
+    LOGGER.info('Starting to fetch matches')
+
+    LOGGER.info('Getting api service')
     service = get_api_service()
 
+    LOGGER.info('Fetching data')
     year_stats = get_year_stats(service)
 
+    LOGGER.info('Generating result json')
     matches = {}
     for month in year_stats:
         matches.update(fetch(month))
 
-    json.dump(matches, open(sys.argv[1], 'w'), indent=2, ensure_ascii=False)
-
-
-if __name__ == '__main__':
-    main()
+    LOGGER.info('Fetching is complete!')
+    return matches

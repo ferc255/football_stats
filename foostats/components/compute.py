@@ -2,12 +2,14 @@
 Processes the set of games and returns statistics in json format, which
 should be displayed in Google Spreadsheets in the future.
 """
-import json
-import sys
 import collections
 import functools
 
 from foostats.settings import MIN_MATCH_COUNT
+from foostats.utils.helpers import get_logger
+
+
+LOGGER = get_logger(__name__)
 
 
 def get_players_set(matches):
@@ -143,6 +145,8 @@ def calculate(matches):
     """
     The main function of the component
     """
+    LOGGER.info('Calculating statistics')
+
     players_set = get_players_set(matches)
     response = {
         key: {} for key in players_set.union(['MAIN'])
@@ -154,27 +158,6 @@ def calculate(matches):
         response[player]['coef_history'] = (
             get_coef_history(matches, player, MIN_MATCH_COUNT))
 
+    LOGGER.info('Statistics is successfully calculated!')
+
     return response
-
-
-def parse_args():
-    """
-    Turns input file names into dicts.
-    Saves the result in file.
-
-    Valid request:
-        python3 components/compute.py \
-        test/test_artifacts/min_test.json database/processed.json
-    """
-    json.dump(
-        calculate(
-            json.load(open(sys.argv[1]))
-        ),
-        open(sys.argv[2], 'w'),
-        indent=2,
-        ensure_ascii=False,
-    )
-
-
-if __name__ == '__main__':
-    parse_args()
