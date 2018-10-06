@@ -16,7 +16,8 @@ def parse_args(args):
         choices=['full-run', 'fetch-data', 'compute', 'draw', 'add-match'],
     )
     result = {
-        'action': action_parser.parse_args([args[0]]).action
+        'action': action_parser.parse_args(
+            [args[0]] if args else []).action
     }
 
     database_dir = os.path.join(BASE_DIR, 'database')

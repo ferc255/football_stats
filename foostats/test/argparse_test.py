@@ -96,6 +96,9 @@ class ArgparseTest(unittest.TestCase):
         self.assertRaises(SystemExit, parse_args, ['compute', '--some_arg'])
         self.assertRaises(SystemExit, parse_args, ['compute', 'x', 'y'])
 
+    def test_no_action_argument(self):
+        self.assertRaises(SystemExit, parse_args, [])
+
 
 if __name__ == '__main__':
     unittest.main()
