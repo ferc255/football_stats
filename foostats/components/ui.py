@@ -70,11 +70,11 @@ def get_all_sheets(service):
 def init(service):
     sheets = get_all_sheets(service)
 
+    temp_sheet_id = None
     body = []
     for sheet in sheets:
-        if sheet['properties']['title'] == 'MAIN':
-            main_id = sheet['properties']['sheetId']
-            body.extend(clear_sheet(main_id))
+        if sheet['properties']['title'] == '_temp':
+            temp_sheet_id = sheet['properties']['sheetId']
         else:
             body.append({
                 'deleteSheet': {
@@ -82,7 +82,56 @@ def init(service):
                 }
             })
 
+    if not temp_sheet_id:
+        temp_sheet_id = batch_update(
+            service,
+            {
+                'requests': {
+                    'addSheet': {
+                        'properties': {
+                            'title': '_temp',
+                            'gridProperties': {
+                                'columnCount': 1,
+                                'rowCount': 1,
+                            }
+                        }
+                    }
+                }
+            }
+        )['replies'][0]['addSheet']['properties']['sheetId']
+
     batch_update(service, {'requests': body})
+
+    main_id = batch_update(
+        service,
+        {
+            'requests': {
+                'addSheet': {
+                    'properties': {
+                        'title': 'MAIN',
+                        'gridProperties': {
+                            # Later I should add rowCount.
+                            # I need to find out how much lines it requires,
+                            # and remove trailing empty lines out of concern
+                            # for performance deterioration.
+                            'columnCount': 6,
+                        }
+                    }
+                }
+            }
+        }
+    )['replies'][0]['addSheet']['properties']['sheetId']
+
+    batch_update(
+        service,
+        {
+            'requests': {
+                'deleteSheet': {
+                    'sheetId': temp_sheet_id,
+                }
+            }
+        }
+    )
 
     return main_id
 
@@ -331,9 +380,7 @@ def draw(stats):
     Valid request:
         python3 components/ui.py database/processed.json
     """
-    LOGGER.info('Drawing the results')
-
-    LOGGER.info('Getting api service')
+    LOGGER.info('Getting api service for drawing')
     service = get_api_service()
 
     LOGGER.info('Creating sheets for each player')
